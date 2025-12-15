@@ -1,4 +1,4 @@
-﻿namespace parse_data;
+﻿namespace upsert_data;
 
 using System.Text.Json.Serialization;
 
