@@ -4,7 +4,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "parse-data", "parse-data\pa
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{0ECAF288-AF3F-4ECB-95EE-2577F239DCDC}"
 	ProjectSection(SolutionItems) = preProject
-		compose.yaml = compose.yaml
+		qdrant_compose.yaml = qdrant_compose.yaml
 		data\음식점-데이터셋.json = data\음식점-데이터셋.json
 		data\일반음식점.xml = data\일반음식점.xml
 	EndProjectSection
