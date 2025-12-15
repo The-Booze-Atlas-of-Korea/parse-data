@@ -1,7 +1,7 @@
 ﻿using Qdrant.Client;
 using Qdrant.Client.Grpc;
 
-namespace upsert_data;
+namespace parse_data;
 
 public static class Helper
 {

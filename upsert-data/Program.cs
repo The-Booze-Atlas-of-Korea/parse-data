@@ -2,7 +2,7 @@
 using System.Text.Json;
 using OpenAI;
 using OpenAI.Embeddings;
-using upsert_data;
+using parse_data;
 using Qdrant.Client;
 using Qdrant.Client.Grpc;
 

@@ -1,6 +1,6 @@
-﻿namespace upsert_data;
+﻿using System.Text.Json.Serialization;
 
-using System.Text.Json.Serialization;
+namespace parse_data;
 
 public class BarsDatasetDto
 {
