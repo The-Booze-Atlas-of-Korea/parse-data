@@ -1,0 +1,16 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "parse-data", "parse-data\parse-data.csproj", "{0CC5C9F8-2904-47DB-A689-61B191E7AB7B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0CC5C9F8-2904-47DB-A689-61B191E7AB7B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0CC5C9F8-2904-47DB-A689-61B191E7AB7B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0CC5C9F8-2904-47DB-A689-61B191E7AB7B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0CC5C9F8-2904-47DB-A689-61B191E7AB7B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
