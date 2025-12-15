@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <TargetFramework>net9.0</TargetFramework>
@@ -10,17 +9,20 @@
         <InvariantGlobalization>true</InvariantGlobalization>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     </PropertyGroup>
-    
+
 
     <ItemGroup>
-      <PackageReference Include="OpenAI" Version="2.8.0" />
-      <PackageReference Include="Qdrant.Client" Version="1.16.1" />
+        <PackageReference Include="OpenAI" Version="2.8.0"/>
+        <PackageReference Include="Qdrant.Client" Version="1.16.1"/>
     </ItemGroup>
 
     <ItemGroup>
-      <Content Include="..\.dockerignore">
-        <Link>.dockerignore</Link>
-      </Content>
+        <None Include="..\data\음식점-데이터셋.json" Link="data\음식점-데이터셋.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <Content Include="..\.dockerignore">
+            <Link>.dockerignore</Link>
+        </Content>
     </ItemGroup>
 
 </Project>
