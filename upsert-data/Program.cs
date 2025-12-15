@@ -6,7 +6,9 @@ using parse_data;
 using Qdrant.Client;
 using Qdrant.Client.Grpc;
 
-string jsonPath = args.Length > 0 ? args[0] : "restaurants.json";
+
+var baseDir = AppContext.BaseDirectory; // bin/Debug/net8.0/...
+var jsonPath = Path.Combine(baseDir, "data", "음식점-데이터셋.json");
 if (!File.Exists(jsonPath))
 {
     Console.WriteLine($"JSON 파일을 찾을 수 없습니다: {jsonPath}");
@@ -16,13 +18,11 @@ if (!File.Exists(jsonPath))
 Console.WriteLine($"JSON 로드 중... ({jsonPath})");
 var jsonStream = new FileStream(jsonPath, FileMode.Open);
 
-// 2. JSON 파싱 (배열 가정)
-var options = new JsonSerializerOptions
-{
-    PropertyNameCaseInsensitive = true
-};
 
-var records = await JsonSerializer.DeserializeAsync<List<BarsDatasetDto>>(jsonStream, options);
+var records = await JsonSerializer.DeserializeAsync(
+    jsonStream,
+    BarsJsonContext.Default.ListBarsDatasetDto  // JsonTypeInfo<List<BarsDatasetDto>>
+);
 
 if (records == null || records.Count == 0)
 {
@@ -40,13 +40,15 @@ if (string.IsNullOrWhiteSpace(envApiKey))
     return;
 }
 
+Console.WriteLine(envApiKey);
+
 // 모델 이름은 필요에 따라 변경 가능 (text-embedding-3-large 등)
 EmbeddingClient embeddingClient = new EmbeddingClient(
     model: "text-embedding-3-small",
     credential: new ApiKeyCredential(envApiKey),
     options: new OpenAIClientOptions()
         {
-            Endpoint = new Uri("https://gms.ssafy.io/gmsapi/")
+            Endpoint = new Uri("https://gms.ssafy.io/gmsapi/api.openai.com/v1")
         }
 );
 
