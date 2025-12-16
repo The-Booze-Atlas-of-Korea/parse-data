@@ -82,6 +82,7 @@ Console.WriteLine("컬렉션 생성 완료");
 const int BatchSize = 64;
 var batch = new List<PointStruct>(BatchSize);
 ulong autoId = 1;
+ulong count = 0;
 
 foreach (var r in records)
 {
@@ -113,19 +114,22 @@ foreach (var r in records)
             ["name"] = r.RestName,
             ["address"] = r.Address,
             ["tob_info"] = r.TobInfo,
-            ["lat"] = r.Lat,
-            ["lot"] = r.Lon
+            ["menu"] = r.MenuKoreanAddInfoRaw,
+            ["open_info"] = r.OpenHourInfo
         }
     };
 
     batch.Add(point);
-
+    
     // 배치 사이즈마다 업서트
     if (batch.Count >= BatchSize)
     {
+        count += (ulong)batch.Count;
         await qdrant.UpsertBatchAsync(CollectionName, batch);
+        Console.WriteLine($"진행도 : {batch.Count} / {records.Count}");
         batch.Clear();
     }
+    
 }
 
 // 마지막 남은 배치 업서트
