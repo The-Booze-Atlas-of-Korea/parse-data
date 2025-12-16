@@ -22,7 +22,7 @@ await using (var stream = File.OpenRead(xmlPath))
     xmlResult = (RestaurantXmlResult)serializer.Deserialize(stream)!;
 }
 
-var rows = xmlResult.Body.Rows;
+var rows = xmlResult.Body.Rows.Where(x => x.TrdCode == "영업/정상").ToList();
 
 Console.WriteLine($"로드된 레코드 개수: {rows.Count}");
 
@@ -84,6 +84,11 @@ foreach (var row in rows.Skip(9700).Take(maxRows))
     Console.WriteLine($"QueryText: {queryText}");
 
     int rank = 0;
+
+    if (searchResult.First().Score < 0.8)
+    {
+        
+    }
     foreach (var point in searchResult)
     {
         if(point.Score < 0.8f) continue; 
