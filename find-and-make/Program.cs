@@ -1,9 +1,14 @@
 ﻿using System.ClientModel;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Unicode;
 using System.Xml.Serialization;
 using find_and_make;
 using OpenAI;
 using OpenAI.Embeddings;
 using Qdrant.Client;
+using Qdrant.Client.Grpc;
+
 
 var baseDir = AppContext.BaseDirectory; // bin/Debug/net8.0/...
 var xmlPath = Path.Combine(baseDir, "data", "일반음식점.xml");
@@ -22,7 +27,7 @@ await using (var stream = File.OpenRead(xmlPath))
     xmlResult = (RestaurantXmlResult)serializer.Deserialize(stream)!;
 }
 
-var rows = xmlResult.Body.Rows.Where(x => x.TrdCode == "영업/정상").ToList();
+var rows = xmlResult.Body.Rows;
 
 Console.WriteLine($"로드된 레코드 개수: {rows.Count}");
 
@@ -59,7 +64,9 @@ const int VectorSize = 1536;
 // 테스트로 너무 오래 걸리지 않게 일부만 돌려보기
 int maxRows = 100; // 전체 돌릴 때는 rows.Count로 바꾸면 됨
 
-foreach (var row in rows.Skip(9700).Take(maxRows))
+var results = new List<JsonResult>();
+
+foreach (var row in rows)
 {
     var queryText = row.BuildSearchText();
 
@@ -75,54 +82,156 @@ foreach (var row in rows.Skip(9700).Take(maxRows))
     var searchResult = await qdrant.SearchAsync(
         CollectionName,
         vector,
-        limit: 3 // top3 매칭
+        limit: 20
     );
-
-    // 5-3. 결과 출력
-    Console.WriteLine("=================================================");
-    Console.WriteLine($"[XML #{row.RowNum}] {row.BplcNm} | {row.SiteWhlAddr}");
-    Console.WriteLine($"QueryText: {queryText}");
-
-    int rank = 0;
-
-    if (searchResult.First().Score < 0.8)
-    {
-        
-    }
-    foreach (var point in searchResult)
-    {
-        if(point.Score < 0.8f) continue; 
-        // JSON 업서트할 때 payload에 이런 식으로 넣었다고 가정:
-        //  ["rest_id"] = ..., ["rest_nm"] = ..., ["addr"] = ...
-        var payload = point.Payload;
-
-        // payload는 Qdrant.Client.Grpc.Value 타입 딕셔너리
-        /*
-            ["rest_id"] = r.RestId,
-            ["name"] = r.RestName,
-            ["address"] = r.Address,
-            ["tob_info"] = r.TobInfo,
-            ["lat"] = r.Lat,
-            ["lot"] = r.Lon
-        */
-        payload.TryGetValue("rest_id", out var restIdVal);
-        payload.TryGetValue("name", out var restNmVal);
-        payload.TryGetValue("address", out var addrVal);
-        
-        string restId = restIdVal?.StringValue ?? restIdVal?.IntegerValue.ToString() ?? "?";
-        string restNm = restNmVal?.StringValue ?? "?";
-        string addr   = addrVal?.StringValue ?? "?";
-
-        Console.WriteLine(
-            $"  #{++rank} Score={point.Score:F4} " +
-            $"ID={restId} | REST_NM={restNm} | ADDR={addr}"
-        );
-        
-    }
     
-    if(rank == 0) Console.WriteLine("일치하는 데이터 없음");
 
-    Console.WriteLine();
+    double.TryParse(row.X, out var xmlX);
+    double.TryParse(row.Y, out var xmlY);
+    double xmlLat = 0, xmlLon = 0;
+    (xmlLat, xmlLon) = Coord.Epsg5174ToWgs84(xmlX, xmlY);
+    
+    ScoredPoint? best = null;
+    double bestFinal = double.NegativeInfinity;
+
+    // 거리 컷 기준 (너 데이터 특성상 수백 m 오차가 있을 수 있어서 400m까지 허용)
+    const double MaxDist = 400.0;
+    const double HardRejectDist = 1200.0; // 1.2km 넘어가면 거의 오탐
+    
+    
+    foreach (var c in searchResult)
+    {
+        var embedScore = c.Score;
+        if (embedScore < 0.80) continue;
+
+        var p = c.Payload;
+
+        // --- payload에서 값 꺼내기(키 여러 케이스 지원)
+        string? candName = p.GetPayloadString("REST_NM", "name", "REST_NM_KR");
+        string? candAddr = p.GetPayloadString("ADDR", "address");
+        string? candOpen = p.GetPayloadString("OPEN_HR_INFO", "open_info");
+        string? candMenu = p.GetPayloadString("MENU_NM", "menu");
+
+        ulong? candRestId = p.GetPayloadULong("REST_ID", "rest_id");
+
+        double? candLat = p.GetPayloadDouble("LAT", "lat");
+        double? candLon = p.GetPayloadDouble("LOT", "lot", "LON", "lon");
+
+        // 4-1) 거리 계산 (가능할 때만)
+        double dist = double.NaN;
+        bool hasCandCoord = candLat.HasValue && candLon.HasValue;
+
+        bool passGeo = true;
+        double geoScore = 0.0;
+
+        if (hasCandCoord)
+        {
+            dist = Helper.HaversineMeters(xmlLat, xmlLon, candLat.Value, candLon.Value);
+
+            if (dist > HardRejectDist)
+                continue; // 너무 멀면 즉시 컷
+
+            // 0~MaxDist: 1.0 -> 0.0 선형 감점
+            geoScore = Math.Clamp(1.0 - (dist / MaxDist), 0.0, 1.0);
+
+            // MaxDist 초과면 geoScore=0, 그래도 주소가 완전 동일하면 살릴 수도 있게 passGeo는 유지
+            // (하지만 보통은 주소가 동일하면 dist도 근처여야 정상)
+        }
+
+        // 4-2) 주소 보너스
+        // XML은 지번/도로명 둘 다 있으니 둘 중 하나라도 맞으면 보너스
+        var addrExact =
+            row.SiteWhlAddr.Exact(candAddr) ||
+            row.RdnWhlAddr.Exact(candAddr);
+        
+
+        double addrBonus = 0.0;
+        if (addrExact) addrBonus = 0.70;       // ✅ 거의 확정급
+
+        // 4-3) 최종 점수(주소/거리 중심으로 가중)
+        // embed 0.5 + geo 0.5 + addrBonus(최대 0.7)
+        double final = (0.5 * embedScore) + (0.5 * geoScore) + addrBonus;
+
+        // 거리/주소 둘 다 없으면 너무 위험하니 컷(오탐 방지)
+        bool hasAnyStrongSignal = addrExact || (hasCandCoord && !double.IsNaN(dist) && dist <= MaxDist);
+        if (!hasAnyStrongSignal && embedScore < 0.90)
+            continue;
+
+        if (final > bestFinal)
+        {
+            bestFinal = final;
+            best = c;
+        }
+    }
+    Console.WriteLine("=================================================");
+    if (best is null)
+    {
+        if (float.TryParse(row.X, out var x) && float.TryParse(row.Y, out var y))
+        {
+            results.Add(new JsonResult
+            {
+                Adress = row.SiteWhlAddr,
+                Name = row.BplcNm,
+                CategoryName = row.UptaeNm,
+                X = x,
+                Y = y,
+                OpenInfo = null,
+                Menu = null,
+                RestID = null
+            });
+        }
+    }
+    else
+    {
+        Console.WriteLine($"[XML #{row.RowNum}] {row.BplcNm} | {row.SiteWhlAddr}");
+        Console.WriteLine($"QueryText: {queryText}");
+
+        var bp = best.Payload;
+
+        var bestRestId = bp.GetPayloadULong("REST_ID", "rest_id");
+        var bestName   = bp.GetPayloadString("REST_NM", "name");
+        var bestAddr   = bp.GetPayloadString("ADDR", "address");
+        var bestOpen   = bp.GetPayloadString("OPEN_HR_INFO", "open_info");
+        var bestMenu   = bp.GetPayloadString("MENU_NM", "menu");
+
+        Console.WriteLine($"  BEST FinalScore={bestFinal:F4} Embed={best.Score:F4}");
+        Console.WriteLine($"  ID={bestRestId?.ToString() ?? "?"} | NAME={bestName ?? "?"} | ADDR={bestAddr ?? "?"}");
+
+        if (float.TryParse(row.X, out var x) && float.TryParse(row.Y, out var y))
+        {
+            results.Add(new JsonResult
+            {
+                Adress = row.SiteWhlAddr,
+                Name = row.BplcNm,
+                CategoryName = row.UptaeNm,
+                X = x,
+                Y = y,
+                OpenInfo = bestOpen,
+                Menu = bestMenu,
+                RestID = bestRestId
+            });
+        }
+    }
+    Console.WriteLine($"진행도 : {results.Count} / {rows.Count}");
 }
 
 Console.WriteLine("검색 완료");
+
+var outputDir = Path.Combine(baseDir, "output");
+Directory.CreateDirectory(outputDir);
+
+var outputPath = Path.Combine(outputDir, "matched_results.json");
+
+var options = new JsonSerializerOptions
+{
+    TypeInfoResolver = AppJsonContext.Default,                  // 소스 제너레이터 사용
+    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,      // 한글 등 유니코드 이스케이프 안 함
+    WriteIndented = true                                        // 보기 좋게 들여쓰기
+};
+
+// ⚠️ 중요: context 기반 오버로드 사용
+var json = JsonSerializer.Serialize(results, options);
+
+await File.WriteAllTextAsync(outputPath, json);
+
+Console.WriteLine($"결과 파일 저장 완료: {outputPath}"); Console.WriteLine($"총 저장된 레코드 수: {results.Count}");
