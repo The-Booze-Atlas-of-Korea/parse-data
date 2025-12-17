@@ -126,7 +126,7 @@ foreach (var r in records)
     {
         count += (ulong)batch.Count;
         await qdrant.UpsertBatchAsync(CollectionName, batch);
-        Console.WriteLine($"진행도 : {batch.Count} / {records.Count}");
+        Console.WriteLine($"진행도 : {count} / {records.Count}");
         batch.Clear();
     }
     
