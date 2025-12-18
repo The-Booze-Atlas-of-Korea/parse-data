@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "find-and-make", "find-and-m
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "insert_to_db", "insert_to_db\insert_to_db.csproj", "{027C95A9-1D10-4D10-8067-D630520BF4B7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "db_json_to_es_ndjson", "db_json_to_es_ndjson\db_json_to_es_ndjson.csproj", "{5C7ECF87-DB7D-4B34-B350-D13BF756E42F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -31,5 +33,9 @@ Global
 		{027C95A9-1D10-4D10-8067-D630520BF4B7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{027C95A9-1D10-4D10-8067-D630520BF4B7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{027C95A9-1D10-4D10-8067-D630520BF4B7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5C7ECF87-DB7D-4B34-B350-D13BF756E42F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5C7ECF87-DB7D-4B34-B350-D13BF756E42F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5C7ECF87-DB7D-4B34-B350-D13BF756E42F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5C7ECF87-DB7D-4B34-B350-D13BF756E42F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
